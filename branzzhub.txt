@@ -1,0 +1,1200 @@
+-- Project Branzz TP
+-- Interface Principal e Funcionalidades
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+-- Player
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Configurações de cores baseadas no emoji ☢️ (tons suaves)
+local COLOR_PRIMARY = Color3.fromRGB(100, 220, 100)    -- Verde suave radioativo
+local COLOR_SECONDARY = Color3.fromRGB(70, 180, 70)     -- Verde mais escuro
+local COLOR_ACCENT = Color3.fromRGB(180, 220, 180)      -- Verde claro
+local COLOR_BACKGROUND = Color3.fromRGB(30, 40, 30)     -- Fundo escuro
+local COLOR_TEXT = Color3.fromRGB(220, 240, 220)        -- Texto claro
+local COLOR_BUTTON = Color3.fromRGB(50, 120, 50)        -- Botão normal
+local COLOR_BUTTON_HOVER = Color3.fromRGB(70, 150, 70)  -- Botão hover
+local COLOR_ON = Color3.fromRGB(80, 200, 80)            -- Verde ligado
+local COLOR_OFF = Color3.fromRGB(120, 120, 120)         -- Cinza desligado
+local COLOR_CLOSE = Color3.fromRGB(200, 80, 80)         -- Vermelho fechar
+local COLOR_MINIMIZE = Color3.fromRGB(200, 180, 80)     -- Amarelo minimizar
+local COLOR_MAXIMIZE = Color3.fromRGB(80, 150, 200)     -- Azul maximizar
+
+-- Variáveis de estado
+local mainGuiVisible = true
+local panelVisible = false
+local mainGuiMinimized = false
+local functionsEnabled = {}
+local markedPosition = nil
+local teleguidedActive = false
+local teleportTeleguidedActive = false
+local desyncV1Active = false
+local desyncV2Active = false
+local xRayActive = false
+local hitboxExpanderActive = false
+local infiniteJumpActive = false
+local speedBoostActive = false
+local espActive = false
+local platforms = {}
+local clones = {}
+local espFolders = {}
+local antiRagdollEnabled = true
+local antiResetEnabled = true
+local antiKickEnabled = true
+
+-- Função para criar elementos de UI
+local function createElement(className, properties)
+	local element = Instance.new(className)
+	for prop, value in pairs(properties) do
+		if prop ~= "Parent" then
+			element[prop] = value
+		end
+	end
+	if properties.Parent then
+		element.Parent = properties.Parent
+	end
+	return element
+end
+
+-- Círculo principal (ícone flutuante)
+local screenGui = createElement("ScreenGui", {
+	Name = "BranzzTPGui",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+})
+
+local circleButton = createElement("ImageButton", {
+	Name = "CircleButton",
+	Parent = screenGui,
+	BackgroundColor3 = COLOR_PRIMARY,
+	BackgroundTransparency = 0.3,
+	Size = UDim2.new(0, 50, 0, 50),
+	Position = UDim2.new(0, 20, 0.5, -25),
+	AnchorPoint = Vector2.new(0, 0.5),
+	Image = "rbxassetid://0", -- Adicione uma imagem futuramente aqui
+	ImageColor3 = COLOR_ACCENT,
+	ScaleType = Enum.ScaleType.Crop,
+	AutoButtonColor = false,
+	BorderSizePixel = 0,
+	ZIndex = 10
+})
+
+local circleUICorner = createElement("UICorner", {
+	Parent = circleButton,
+	CornerRadius = UDim.new(1, 0)
+})
+
+local circleUIGradient = createElement("UIGradient", {
+	Parent = circleButton,
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, COLOR_PRIMARY),
+		ColorSequenceKeypoint.new(1, COLOR_SECONDARY)
+	}),
+	Rotation = 45
+})
+
+-- GUI principal
+local mainFrame = createElement("Frame", {
+	Name = "MainFrame",
+	Parent = screenGui,
+	BackgroundColor3 = COLOR_BACKGROUND,
+	BackgroundTransparency = 0.1,
+	Size = UDim2.new(0, 300, 0, 400),
+	Position = UDim2.new(0, 80, 0.5, -200),
+	AnchorPoint = Vector2.new(0, 0.5),
+	BorderSizePixel = 0,
+	Visible = false,
+	Active = true
+})
+
+local mainUICorner = createElement("UICorner", {
+	Parent = mainFrame,
+	CornerRadius = UDim.new(0, 8)
+})
+
+local mainUIStroke = createElement("UIStroke", {
+	Parent = mainFrame,
+	Color = COLOR_PRIMARY,
+	Thickness = 2,
+	Transparency = 0.5
+})
+
+-- Barra de título
+local titleBar = createElement("Frame", {
+	Name = "TitleBar",
+	Parent = mainFrame,
+	BackgroundColor3 = COLOR_SECONDARY,
+	BackgroundTransparency = 0.2,
+	Size = UDim2.new(1, 0, 0, 30),
+	BorderSizePixel = 0
+})
+
+local titleUICorner = createElement("UICorner", {
+	Parent = titleBar,
+	CornerRadius = UDim.new(0, 8)
+})
+
+local titleText = createElement("TextLabel", {
+	Name = "TitleText",
+	Parent = titleBar,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(0.6, 0, 1, 0),
+	Position = UDim2.new(0.05, 0, 0, 0),
+	Font = Enum.Font.GothamBold,
+	Text = "Project Branzz Tp",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 16,
+	TextXAlignment = Enum.TextXAlignment.Left
+})
+
+-- Botões da barra de título
+local closeButton = createElement("TextButton", {
+	Name = "CloseButton",
+	Parent = titleBar,
+	BackgroundColor3 = COLOR_CLOSE,
+	BackgroundTransparency = 0.3,
+	Size = UDim2.new(0, 25, 0, 25),
+	Position = UDim2.new(1, -30, 0.5, -12.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	Font = Enum.Font.GothamBold,
+	Text = "X",
+	TextColor3 = Color3.new(1, 1, 1),
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+
+local closeUICorner = createElement("UICorner", {
+	Parent = closeButton,
+	CornerRadius = UDim.new(0, 4)
+})
+
+local minimizeButton = createElement("TextButton", {
+	Name = "MinimizeButton",
+	Parent = titleBar,
+	BackgroundColor3 = COLOR_MINIMIZE,
+	BackgroundTransparency = 0.3,
+	Size = UDim2.new(0, 25, 0, 25),
+	Position = UDim2.new(1, -60, 0.5, -12.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	Font = Enum.Font.GothamBold,
+	Text = "-",
+	TextColor3 = Color3.new(1, 1, 1),
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+
+local minimizeUICorner = createElement("UICorner", {
+	Parent = minimizeButton,
+	CornerRadius = UDim.new(0, 4)
+})
+
+local maximizeButton = createElement("TextButton", {
+	Name = "MaximizeButton",
+	Parent = titleBar,
+	BackgroundColor3 = COLOR_MAXIMIZE,
+	BackgroundTransparency = 0.3,
+	Size = UDim2.new(0, 25, 0, 25),
+	Position = UDim2.new(1, -90, 0.5, -12.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	Font = Enum.Font.GothamBold,
+	Text = "+",
+	TextColor3 = Color3.new(1, 1, 1),
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0,
+	Visible = false
+})
+
+local maximizeUICorner = createElement("UICorner", {
+	Parent = maximizeButton,
+	CornerRadius = UDim.new(0, 4)
+})
+
+-- Área de conteúdo principal
+local contentFrame = createElement("Frame", {
+	Name = "ContentFrame",
+	Parent = mainFrame,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, -20, 1, -50),
+	Position = UDim2.new(0, 10, 0, 40),
+	Visible = true
+})
+
+local contentScroll = createElement("ScrollingFrame", {
+	Name = "ContentScroll",
+	Parent = contentFrame,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 1, 0),
+	CanvasSize = UDim2.new(0, 0, 0, 600),
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = COLOR_PRIMARY,
+	BorderSizePixel = 0
+})
+
+-- Painel secundário (lado direito)
+local panelFrame = createElement("Frame", {
+	Name = "PanelFrame",
+	Parent = screenGui,
+	BackgroundColor3 = COLOR_BACKGROUND,
+	BackgroundTransparency = 0.1,
+	Size = UDim2.new(0, 280, 0, 350),
+	Position = UDim2.new(1, -290, 0.5, -175),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BorderSizePixel = 0,
+	Visible = false,
+	Active = true
+})
+
+local panelUICorner = createElement("UICorner", {
+	Parent = panelFrame,
+	CornerRadius = UDim.new(0, 8)
+})
+
+local panelUIStroke = createElement("UIStroke", {
+	Parent = panelFrame,
+	Color = COLOR_PRIMARY,
+	Thickness = 2,
+	Transparency = 0.5
+})
+
+local panelTitle = createElement("TextLabel", {
+	Name = "PanelTitle",
+	Parent = panelFrame,
+	BackgroundColor3 = COLOR_SECONDARY,
+	BackgroundTransparency = 0.2,
+	Size = UDim2.new(1, 0, 0, 40),
+	Font = Enum.Font.GothamBold,
+	Text = "Segue la no TKK @Toxic_Hub009",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 14,
+	BorderSizePixel = 0
+})
+
+local panelTitleUICorner = createElement("UICorner", {
+	Parent = panelTitle,
+	CornerRadius = UDim.new(0, 8)
+})
+
+local panelContent = createElement("ScrollingFrame", {
+	Name = "PanelContent",
+	Parent = panelFrame,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, -20, 1, -60),
+	Position = UDim2.new(0, 10, 0, 50),
+	CanvasSize = UDim2.new(0, 0, 0, 800),
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = COLOR_PRIMARY,
+	BorderSizePixel = 0
+})
+
+-- Funções de arrastar
+local function makeDraggable(frame, handle)
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input == dragInput then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+-- Aplicar arrastável
+makeDraggable(mainFrame, titleBar)
+makeDraggable(panelFrame, panelTitle)
+makeDraggable(circleButton, circleButton)
+
+-- Função para criar botões com toggle
+local function createToggleButton(name, text, parent, yPosition, toggleCallback)
+	local buttonFrame = createElement("Frame", {
+		Name = name .. "Frame",
+		Parent = parent,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 40),
+		Position = UDim2.new(0, 0, 0, yPosition)
+	})
+
+	local button = createElement("TextButton", {
+		Name = name .. "Button",
+		Parent = buttonFrame,
+		BackgroundColor3 = COLOR_BUTTON,
+		Size = UDim2.new(1, 0, 0, 35),
+		Font = Enum.Font.Gotham,
+		Text = text,
+		TextColor3 = COLOR_TEXT,
+		TextSize = 14,
+		AutoButtonColor = false,
+		BorderSizePixel = 0
+	})
+
+	local buttonUICorner = createElement("UICorner", {
+		Parent = button,
+		CornerRadius = UDim.new(0, 6)
+	})
+
+	local statusIndicator = createElement("Frame", {
+		Name = "StatusIndicator",
+		Parent = button,
+		BackgroundColor3 = COLOR_OFF,
+		Size = UDim2.new(0, 10, 0, 10),
+		Position = UDim2.new(1, -15, 0.5, -5),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BorderSizePixel = 0
+	})
+
+	local statusUICorner = createElement("UICorner", {
+		Parent = statusIndicator,
+		CornerRadius = UDim.new(1, 0)
+	})
+
+	local enabled = false
+
+	button.MouseButton1Click:Connect(function()
+		enabled = not enabled
+		if enabled then
+			statusIndicator.BackgroundColor3 = COLOR_ON
+			button.BackgroundColor3 = COLOR_BUTTON_HOVER
+		else
+			statusIndicator.BackgroundColor3 = COLOR_OFF
+			button.BackgroundColor3 = COLOR_BUTTON
+		end
+		if toggleCallback then
+			toggleCallback(enabled)
+		end
+	end)
+
+	button.MouseEnter:Connect(function()
+		if not enabled then
+			button.BackgroundColor3 = COLOR_BUTTON_HOVER
+		end
+	end)
+
+	button.MouseLeave:Connect(function()
+		if not enabled then
+			button.BackgroundColor3 = COLOR_BUTTON
+		end
+	end)
+
+	return buttonFrame, function() return enabled end, function(state)
+		enabled = state
+		if enabled then
+			statusIndicator.BackgroundColor3 = COLOR_ON
+			button.BackgroundColor3 = COLOR_BUTTON_HOVER
+		else
+			statusIndicator.BackgroundColor3 = COLOR_OFF
+			button.BackgroundColor3 = COLOR_BUTTON
+		end
+	end
+end
+
+-- Função para criar campo de entrada
+local function createInputField(name, placeholder, parent, yPosition)
+	local inputFrame = createElement("Frame", {
+		Name = name .. "Frame",
+		Parent = parent,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 40),
+		Position = UDim2.new(0, 0, 0, yPosition)
+	})
+
+	local textBox = createElement("TextBox", {
+		Name = name .. "TextBox",
+		Parent = inputFrame,
+		BackgroundColor3 = COLOR_BACKGROUND,
+		BackgroundTransparency = 0.5,
+		Size = UDim2.new(1, 0, 0, 30),
+		Font = Enum.Font.Gotham,
+		Text = "",
+		PlaceholderText = placeholder,
+		TextColor3 = COLOR_TEXT,
+		PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
+		TextSize = 14,
+		BorderSizePixel = 0,
+		ClearTextOnFocus = false
+	})
+
+	local textBoxUICorner = createElement("UICorner", {
+		Parent = textBox,
+		CornerRadius = UDim.new(0, 6)
+	})
+
+	return textBox
+end
+
+-- Criar botões na GUI principal
+local buttonY = 0
+local buttonSpacing = 45
+
+-- 1. X-ray
+local xrayButton, getXrayState, setXrayState = createToggleButton("Xray", "1. X-ray", contentScroll, buttonY, function(enabled)
+	xRayActive = enabled
+	if enabled then
+		for _, part in ipairs(Workspace:GetDescendants()) do
+			if part:IsA("BasePart") and part.Transparency < 0.9 then
+				part.LocalTransparencyModifier = 0.8
+			end
+		end
+	else
+		for _, part in ipairs(Workspace:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.LocalTransparencyModifier = 0
+			end
+		end
+	end
+end)
+buttonY += buttonSpacing
+
+-- 2. Super Boost
+local superBoostButton = createElement("TextButton", {
+	Name = "SuperBoostButton",
+	Parent = contentScroll,
+	BackgroundColor3 = COLOR_BUTTON,
+	Size = UDim2.new(1, 0, 0, 35),
+	Position = UDim2.new(0, 0, 0, buttonY),
+	Font = Enum.Font.Gotham,
+	Text = "2. Super Boost",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+local superBoostUICorner = createElement("UICorner", {Parent = superBoostButton, CornerRadius = UDim.new(0, 6)})
+superBoostButton.MouseButton1Click:Connect(function()
+	-- Otimizações de performance
+	settings().Rendering.QualityLevel = 1
+	settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
+	for _, v in ipairs(Workspace:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Material = Enum.Material.Plastic
+			v.Reflectance = 0
+		end
+	end
+end)
+superBoostButton.MouseEnter:Connect(function() superBoostButton.BackgroundColor3 = COLOR_BUTTON_HOVER end)
+superBoostButton.MouseLeave:Connect(function() superBoostButton.BackgroundColor3 = COLOR_BUTTON end)
+buttonY += buttonSpacing
+
+-- 3. Hitbox Expander
+local hitboxButton, getHitboxState, setHitboxState = createToggleButton("Hitbox", "3. Hitbox Expander", contentScroll, buttonY, function(enabled)
+	hitboxExpanderActive = enabled
+end)
+buttonY += buttonSpacing
+
+local hitboxSizeInput = createInputField("HitboxSize", "Tamanho da Hitbox (1-10)", contentScroll, buttonY)
+buttonY += buttonSpacing
+
+-- 4. Abrir Painel
+local openPanelButton = createElement("TextButton", {
+	Name = "OpenPanelButton",
+	Parent = contentScroll,
+	BackgroundColor3 = COLOR_BUTTON,
+	Size = UDim2.new(1, 0, 0, 35),
+	Position = UDim2.new(0, 0, 0, buttonY),
+	Font = Enum.Font.Gotham,
+	Text = "4. Abrir Painel☢️",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+local openPanelUICorner = createElement("UICorner", {Parent = openPanelButton, CornerRadius = UDim.new(0, 6)})
+openPanelButton.MouseButton1Click:Connect(function()
+	panelVisible = not panelVisible
+	panelFrame.Visible = panelVisible
+end)
+openPanelButton.MouseEnter:Connect(function() openPanelButton.BackgroundColor3 = COLOR_BUTTON_HOVER end)
+openPanelButton.MouseLeave:Connect(function() openPanelButton.BackgroundColor3 = COLOR_BUTTON end)
+buttonY += buttonSpacing
+
+-- Atualizar tamanho do canvas do scroll
+contentScroll.CanvasSize = UDim2.new(0, 0, 0, buttonY + 50)
+
+-- Criar botões no painel secundário
+local panelButtonY = 0
+local panelButtonSpacing = 50
+
+-- 1. Mark Position
+local markPositionButton = createElement("TextButton", {
+	Name = "MarkPositionButton",
+	Parent = panelContent,
+	BackgroundColor3 = COLOR_BUTTON,
+	Size = UDim2.new(1, 0, 0, 35),
+	Position = UDim2.new(0, 0, 0, panelButtonY),
+	Font = Enum.Font.Gotham,
+	Text = "1. Mark Position📍",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+local markPositionUICorner = createElement("UICorner", {Parent = markPositionButton, CornerRadius = UDim.new(0, 6)})
+markPositionButton.MouseButton1Click:Connect(function()
+	if markedPosition then
+		-- Criar notificação visual
+		local notification = createElement("TextLabel", {
+			Parent = screenGui,
+			BackgroundColor3 = COLOR_BACKGROUND,
+			BackgroundTransparency = 0.2,
+			Size = UDim2.new(0, 250, 0, 50),
+			Position = UDim2.new(0.5, -125, 0.8, 0),
+			Font = Enum.Font.Gotham,
+			Text = "Posição já marcada! Use Clear Position primeiro.",
+			TextColor3 = COLOR_TEXT,
+			TextSize = 12,
+			BorderSizePixel = 0
+		})
+		local notifUICorner = createElement("UICorner", {Parent = notification, CornerRadius = UDim.new(0, 8)})
+		task.wait(3)
+		notification:Destroy()
+	else
+		markedPosition = rootPart.Position
+		-- Criar indicador visual
+		local marker = createElement("Part", {
+			Parent = Workspace,
+			Position = markedPosition,
+			Size = Vector3.new(2, 2, 2),
+			Color = COLOR_PRIMARY,
+			Material = Enum.Material.Neon,
+			Transparency = 0.5,
+			Anchored = true,
+			CanCollide = false
+		})
+		task.spawn(function()
+			while markedPosition do
+				marker.Color = COLOR_PRIMARY
+				task.wait(0.5)
+				marker.Color = COLOR_ACCENT
+				task.wait(0.5)
+			end
+		end)
+	end
+end)
+markPositionButton.MouseEnter:Connect(function() markPositionButton.BackgroundColor3 = COLOR_BUTTON_HOVER end)
+markPositionButton.MouseLeave:Connect(function() markPositionButton.BackgroundColor3 = COLOR_BUTTON end)
+panelButtonY += panelButtonSpacing
+
+-- Clear Position
+local clearPositionButton = createElement("TextButton", {
+	Name = "ClearPositionButton",
+	Parent = panelContent,
+	BackgroundColor3 = Color3.fromRGB(200, 80, 80),
+	Size = UDim2.new(1, 0, 0, 30),
+	Position = UDim2.new(0, 0, 0, panelButtonY),
+	Font = Enum.Font.Gotham,
+	Text = "Clear Position🗑️",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 12,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+local clearPositionUICorner = createElement("UICorner", {Parent = clearPositionButton, CornerRadius = UDim.new(0, 6)})
+clearPositionButton.MouseButton1Click:Connect(function()
+	markedPosition = nil
+	for _, obj in ipairs(Workspace:GetChildren()) do
+		if obj.Name == "PositionMarker" then
+			obj:Destroy()
+		end
+	end
+end)
+clearPositionButton.MouseEnter:Connect(function() clearPositionButton.BackgroundColor3 = Color3.fromRGB(220, 100, 100) end)
+clearPositionButton.MouseLeave:Connect(function() clearPositionButton.BackgroundColor3 = Color3.fromRGB(200, 80, 80) end)
+panelButtonY += panelButtonSpacing
+
+-- 2. Teleguiado
+local teleguidedButton, getTeleguidedState, setTeleguidedState = createToggleButton("Teleguided", "2. Teleguiado", panelContent, panelButtonY, function(enabled)
+	teleguidedActive = enabled
+	if enabled then
+		-- Ativar sistema de voo
+		humanoid.PlatformStand = true
+		rootPart.Anchored = false
+		
+		-- Criar plataformas periódicas
+		task.spawn(function()
+			while teleguidedActive do
+				task.wait(6) -- Espera 6 segundos antes da primeira plataforma
+				if teleguidedActive then
+					local platform = createElement("Part", {
+						Parent = Workspace,
+						Size = Vector3.new(10, 1, 10),
+						Color = COLOR_PRIMARY,
+						Transparency = 0.7,
+						Material = Enum.Material.Plastic,
+						Anchored = true,
+						CanCollide = true
+					})
+					platform.Position = rootPart.Position - Vector3.new(0, 3, 0)
+					table.insert(platforms, platform)
+					task.wait(3) -- Nova plataforma a cada 3 segundos
+				end
+			end
+		end)
+		
+		-- Sistema de movimento
+		local connection
+		connection = RunService.Heartbeat:Connect(function(delta)
+			if teleguidedActive and rootPart then
+				local camera = Workspace.CurrentCamera
+				local direction = camera.CFrame.LookVector
+				rootPart.Velocity = direction * 28
+			elseif connection then
+				connection:Disconnect()
+			end
+		end)
+	else
+		humanoid.PlatformStand = false
+		-- Limpar plataformas
+		for _, platform in ipairs(platforms) do
+			platform:Destroy()
+		end
+		platforms = {}
+	end
+end)
+panelButtonY += panelButtonSpacing
+
+-- 3. Tp Teleguiado
+local teleportTeleguidedButton, getTeleportTeleguidedState, setTeleportTeleguidedState = createToggleButton("TeleportTeleguided", "3. Tp Teleguiado", panelContent, panelButtonY, function(enabled)
+	teleportTeleguidedActive = enabled
+	if enabled and markedPosition then
+		-- Sistema de teleporte direcional
+		local direction = (markedPosition - rootPart.Position).Unit
+		humanoid.PlatformStand = true
+		
+		-- Criar plataformas durante o teleporte
+		task.spawn(function()
+			while teleportTeleguidedActive and markedPosition do
+				task.wait(7) -- Espera 7 segundos
+				if teleportTeleguidedActive then
+					local platform = createElement("Part", {
+						Parent = Workspace,
+						Size = Vector3.new(8, 1, 8),
+						Color = COLOR_ACCENT,
+						Transparency = 0.6,
+						Material = Enum.Material.Plastic,
+						Anchored = true,
+						CanCollide = true
+					})
+					platform.Position = rootPart.Position - Vector3.new(0, 2, 0)
+					table.insert(platforms, platform)
+					task.wait(2) -- Nova plataforma a cada 2 segundos
+				end
+			end
+		end)
+		
+		-- Movimento em direção à posição marcada
+		local connection
+		connection = RunService.Heartbeat:Connect(function()
+			if teleportTeleguidedActive and markedPosition then
+				local currentPos = rootPart.Position
+				local targetPos = markedPosition
+				local distance = (targetPos - currentPos).Magnitude
+				
+				if distance < 5 then
+					-- Chegou no destino
+					setTeleportTeleguidedState(false)
+					if connection then
+						connection:Disconnect()
+					end
+				else
+					local direction = (targetPos - currentPos).Unit
+					rootPart.Velocity = direction * 25
+				end
+			end
+		end)
+	else
+		humanoid.PlatformStand = false
+		setTeleportTeleguidedState(false)
+	end
+end)
+panelButtonY += panelButtonSpacing
+
+-- 4. Desync V1
+local desyncV1Button, getDesyncV1State, setDesyncV1State = createToggleButton("DesyncV1", "4. Desync V1", panelContent, panelButtonY, function(enabled)
+	desyncV1Active = enabled
+	if enabled then
+		-- Sistema Desync V1
+		local clone = character:Clone()
+		clone.Name = "DesyncCloneV1"
+		clone.Parent = Workspace
+		
+		-- Posicionar clone
+		for _, part in ipairs(clone:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.Anchored = true
+				part.Transparency = 0.5
+				part.Color = COLOR_PRIMARY
+			end
+		end
+		
+		clone:MoveTo(rootPart.Position)
+		table.insert(clones, clone)
+		
+		-- Tornar personagem original "invisível" para outros
+		rootPart.Transparency = 1
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.LocalTransparencyModifier = 0.9
+			end
+		end
+	else
+		-- Limpar desync
+		for _, clone in ipairs(clones) do
+			clone:Destroy()
+		end
+		clones = {}
+		
+		-- Restaurar visibilidade
+		rootPart.Transparency = 0
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.LocalTransparencyModifier = 0
+			end
+		end
+	end
+end)
+panelButtonY += panelButtonSpacing
+
+-- Desync V2
+local desyncV2Button, getDesyncV2State, setDesyncV2State = createToggleButton("DesyncV2", "Desync V2", panelContent, panelButtonY, function(enabled)
+	desyncV2Active = enabled
+	if enabled then
+		-- Sistema Desync V2 com clone lagado
+		local clone = character:Clone()
+		clone.Name = "DesyncCloneV2"
+		clone.Parent = Workspace
+		
+		-- Configurar clone
+		for _, part in ipairs(clone:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.Anchored = false
+				part.Transparency = 0.3
+				part.Color = COLOR_SECONDARY
+				part.CanCollide = false
+			end
+		end
+		
+		clone:MoveTo(rootPart.Position)
+		table.insert(clones, clone)
+		
+		-- Movimento "lagado" do clone
+		task.spawn(function()
+			while desyncV2Active and clone.Parent do
+				-- Movimento errático
+				local hum = clone:FindFirstChild("Humanoid")
+				if hum then
+					hum:Move(Vector3.new(
+						math.random(-10, 10),
+						0,
+						math.random(-10, 10)
+					))
+				end
+				task.wait(math.random(1, 3)) -- Lag simulado
+			end
+		end)
+		
+		-- Ocultar personagem real
+		rootPart.Transparency = 1
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.LocalTransparencyModifier = 0.9
+			end
+		end
+	else
+		-- Limpar desync
+		for _, clone in ipairs(clones) do
+			clone:Destroy()
+		end
+		clones = {}
+		
+		-- Restaurar visibilidade
+		rootPart.Transparency = 0
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.LocalTransparencyModifier = 0
+			end
+		end
+	end
+end)
+panelButtonY += panelButtonSpacing
+
+-- 5. Anti Lag - FPS Boost
+local antiLagButton = createElement("TextButton", {
+	Name = "AntiLagButton",
+	Parent = panelContent,
+	BackgroundColor3 = COLOR_BUTTON,
+	Size = UDim2.new(1, 0, 0, 35),
+	Position = UDim2.new(0, 0, 0, panelButtonY),
+	Font = Enum.Font.Gotham,
+	Text = "5. Anti Lag - FPS Boost",
+	TextColor3 = COLOR_TEXT,
+	TextSize = 14,
+	AutoButtonColor = false,
+	BorderSizePixel = 0
+})
+local antiLagUICorner = createElement("UICorner", {Parent = antiLagButton, CornerRadius = UDim.new(0, 6)})
+antiLagButton.MouseButton1Click:Connect(function()
+	-- Remover texturas e efeitos pesados
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			obj.Material = Enum.Material.Plastic
+			obj.Reflectance = 0
+			if obj:FindFirstChildOfClass("Decal") then
+				for _, decal in ipairs(obj:GetChildren()) do
+					if decal:IsA("Decal") then
+						decal:Destroy()
+					end
+				end
+			end
+		elseif obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") then
+			obj:Destroy()
+		elseif obj:IsA("SpecialMesh") or obj:IsA("MeshPart") then
+			obj.TextureId = ""
+		end
+	end
+	
+	-- Reduzir qualidade gráfica
+	settings().Rendering.QualityLevel = 1
+	settings().Rendering.EagerBulkExecution = true
+end)
+antiLagButton.MouseEnter:Connect(function() antiLagButton.BackgroundColor3 = COLOR_BUTTON_HOVER end)
+antiLagButton.MouseLeave:Connect(function() antiLagButton.BackgroundColor3 = COLOR_BUTTON end)
+panelButtonY += panelButtonSpacing
+
+-- 6. ESP Player + Line
+local espButton, getEspState, setEspState = createToggleButton("ESP", "6. ESP Player + Line", panelContent, panelButtonY, function(enabled)
+	espActive = enabled
+	if enabled then
+		-- Criar ESP para cada jogador
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= player and plr.Character then
+				createESP(plr.Character)
+			end
+		end
+		
+		-- Conectar para novos jogadores
+		Players.PlayerAdded:Connect(function(plr)
+			plr.CharacterAdded:Connect(function(char)
+				if espActive then
+					createESP(char)
+				end
+			end)
+		end)
+	else
+		-- Remover ESP
+		for _, folder in ipairs(espFolders) do
+			folder:Destroy()
+		end
+		espFolders = {}
+	end
+end)
+
+local function createESP(character)
+	local folder = createElement("Folder", {
+		Name = "ESP_" .. character.Name,
+		Parent = screenGui
+	})
+	
+	table.insert(espFolders, folder)
+	
+	-- Atualizar ESP
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		if not espActive or not character.Parent then
+			if connection then
+				connection:Disconnect()
+			end
+			return
+		end
+		
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root then
+			-- Criar caixa de ESP
+			for _, obj in ipairs(folder:GetChildren()) do
+				obj:Destroy()
+			end
+			
+			-- Linha para o jogador
+			local line = createElement("Frame", {
+				Parent = folder,
+				BackgroundColor3 = COLOR_PRIMARY,
+				BorderSizePixel = 0,
+				Size = UDim2.new(0, 2, 0, 100),
+				Position = UDim2.new(0.5, -1, 0, 0),
+				Rotation = 45
+			})
+			
+			-- Nome e distância
+			local distance = (root.Position - rootPart.Position).Magnitude
+			local nameLabel = createElement("TextLabel", {
+				Parent = folder,
+				BackgroundTransparency = 1,
+				Text = character.Name .. "\n" .. math.floor(distance) .. " studs",
+				TextColor3 = COLOR_TEXT,
+				TextSize = 12,
+				Font = Enum.Font.GothamBold
+			})
+		end
+	end)
+end
+panelButtonY += panelButtonSpacing
+
+-- 7. Infinite Jump
+local infiniteJumpButton, getInfiniteJumpState, setInfiniteJumpState = createToggleButton("InfiniteJump", "7. Infinite Jump", panelContent, panelButtonY, function(enabled)
+	infiniteJumpActive = enabled
+	if enabled then
+		-- Modificar propriedades do humanoid
+		humanoid.JumpPower = 50
+		humanoid.JumpHeight = 10
+		
+		-- Conectar para pulos infinitos
+		local connection
+		connection = UserInputService.JumpRequest:Connect(function()
+			if infiniteJumpActive then
+				humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+			end
+		end)
+		
+		-- Cair mais devagar
+		Workspace.Gravity = 50
+	else
+		-- Restaurar valores padrão
+		humanoid.JumpPower = 50
+		humanoid.JumpHeight = 7.2
+		Workspace.Gravity = 196.2
+	end
+end)
+panelButtonY += panelButtonSpacing
+
+-- 8. Speed Boost
+local speedBoostButton, getSpeedBoostState, setSpeedBoostState = createToggleButton("SpeedBoost", "8. Speed Boost", panelContent, panelButtonY, function(enabled)
+	speedBoostActive = enabled
+	if enabled then
+		-- Sistema de impulso periódico
+		task.spawn(function()
+			while speedBoostActive do
+				task.wait(3) -- Espera 3 segundos
+				if speedBoostActive then
+					-- Aplicar impulso
+					local boost = Instance.new("BodyVelocity")
+					boost.Velocity = rootPart.CFrame.LookVector * 100
+					boost.MaxForce = Vector3.new(10000, 10000, 10000)
+					boost.Parent = rootPart
+					
+					task.wait(6) -- Duração do impulso
+					
+					if boost.Parent then
+						boost:Destroy()
+					end
+				end
+			end
+		end)
+	end
+end)
+
+-- Atualizar tamanho do canvas do painel
+panelContent.CanvasSize = UDim2.new(0, 0, 0, panelButtonY + 50)
+
+-- Sistema Anti-Ragdoll
+local function setupAntiRagdoll()
+	if antiRagdollEnabled then
+		humanoid.BreakJointsOnDeath = false
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	end
+end
+
+-- Sistema Anti-Reset
+local function setupAntiReset()
+	if antiResetEnabled then
+		player.CharacterAdded:Connect(function(newChar)
+			if not antiResetEnabled then return end
+			
+			task.wait(0.1)
+			local newRoot = newChar:WaitForChild("HumanoidRootPart")
+			local newHumanoid = newChar:WaitForChild("Humanoid")
+			
+			-- Preservar posição do clone se existir
+			if #clones > 0 then
+				local lastClone = clones[#clones]
+				if lastClone and lastClone.Parent then
+					local cloneRoot = lastClone:FindFirstChild("HumanoidRootPart")
+					if cloneRoot then
+						newRoot.CFrame = cloneRoot.CFrame
+					end
+				end
+			end
+			
+			-- Restaurar estados ativos
+			if infiniteJumpActive then
+				setInfiniteJumpState(true)
+			end
+			if speedBoostActive then
+				setSpeedBoostState(true)
+			end
+			if teleguidedActive then
+				setTeleguidedState(true)
+			end
+		end)
+	end
+end
+
+-- Sistema Anti-Kick
+local function setupAntiKick()
+	if antiKickEnabled then
+		-- Monitorar tentativas de kick
+		local meta = getrawmetatable(game)
+		local oldNamecall = meta.__namecall
+		
+		setreadonly(meta, false)
+		meta.__namecall = newcclosure(function(self, ...)
+			local method = getnamecallmethod()
+			local args = {...}
+			
+			if method == "Kick" or method == "kick" then
+				if antiKickEnabled then
+					warn("[Anti-Kick] Tentativa de kick bloqueada")
+					return nil
+				end
+			end
+			
+			return oldNamecall(self, ...)
+		end)
+		setreadonly(meta, true)
+	end
+end
+
+-- Funções do arquivo Desync.txt
+local function applyDesyncFlags()
+	local FFlags = {
+		GameNetPVHeaderRotationalVelocityZeroCutoffExponent = -5000,
+		LargeReplicatorWrite5 = true,
+		LargeReplicatorEnabled9 = true,
+		AngularVelociryLimit = 360,
+		TimestepArbiterVelocityCriteriaThresholdTwoDt = 2147483646,
+		S2PhysicsSenderRate = 15000,
+		DisableDPIScale = true,
+		MaxDataPacketPerSend = 2147483647,
+		PhysicsSenderMaxBandwidthBps = 20000,
+		TimestepArbiterHumanoidLinearVelThreshold = 21,
+		MaxMissedWorldStepsRemembered = -2147483648,
+		PlayerHumanoidPropertyUpdateRestrict = true,
+		SimDefaultHumanoidTimestepMultiplier = 0,
+		StreamJobNOUVolumeLengthCap = 2147483647,
+		DebugSendDistInSteps = -2147483648,
+		GameNetDontSendRedundantNumTimes = 1,
+		CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent = 1,
+		CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth = 1,
+		LargeReplicatorSerializeRead3 = true,
+		ReplicationFocusNouExtentsSizeCutoffForPauseStuds = 2147483647,
+		CheckPVCachedVelThresholdPercent = 10,
+		CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth = 1,
+		GameNetDontSendRedundantDeltaPositionMillionth = 1,
+		InterpolationFrameVelocityThresholdMillionth = 5,
+		StreamJobNOUVolumeCap = 2147483647,
+		InterpolationFrameRotVelocityThresholdMillionth = 5,
+		CheckPVCachedRotVelThresholdPercent = 10,
+		WorldStepMax = 30,
+		InterpolationFramePositionThresholdMillionth = 5,
+		TimestepArbiterHumanoidTurningVelThreshold = 1,
+		SimOwnedNOUCountThresholdMillionth = 2147483647,
+		GameNetPVHeaderLinearVelocityZeroCutoffExponent = -5000,
+		NextGenReplicatorEnabledWrite4 = true,
+		TimestepArbiterOmegaThou = 1073741823,
+		MaxAcceptableUpdateDelay = 1,
+		LargeReplicatorSerializeWrite4 = true
+	}
+	
+	for name, value in pairs(FFlags) do
+		pcall(function()
+			if type(value) == "boolean" then
+				value = value and "true" or "false"
+			end
+			setfflag(tostring(name), tostring(value))
+		end)
+	end
+end
+
+-- Configurar interações
+circleButton.MouseButton1Click:Connect(function()
+	mainGuiVisible = not mainGuiVisible
+	mainFrame.Visible = mainGuiVisible
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+	mainGuiVisible = false
+	mainFrame.Visible = false
+	panelVisible = false
+	panelFrame.Visible = false
+end)
+
+minimizeButton.MouseButton1Click:Connect(function()
+	mainGuiMinimized = true
+	contentFrame.Visible = false
+	minimizeButton.Visible = false
+	maximizeButton.Visible = true
+	mainFrame.Size = UDim2.new(0, 300, 0, 80)
+end)
+
+maximizeButton.MouseButton1Click:Connect(function()
+	mainGuiMinimized = false
+	contentFrame.Visible = true
+	minimizeButton.Visible = true
+	maximizeButton.Visible = false
+	mainFrame.Size = UDim2.new(0, 300, 0, 400)
+end)
+
+-- Aplicar efeitos visuais de hover
+local function setupHoverEffects()
+	local buttons = {closeButton, minimizeButton, maximizeButton, superBoostButton, openPanelButton, 
+		markPositionButton, clearPositionButton, antiLagButton}
+	
+	for _, button in ipairs(buttons) do
+		button.MouseEnter:Connect(function()
+			button.BackgroundTransparency = 0.1
+		end)
+		button.MouseLeave:Connect(function()
+			button.BackgroundTransparency = 0.3
+		end)
+	end
+end
+
+-- Inicialização
+screenGui.Parent = player:WaitForChild("PlayerGui")
+setupHoverEffects()
+setupAntiRagdoll()
+setupAntiReset()
+setupAntiKick()
+applyDesyncFlags()
+
+print("Project Branzz TP Carregado!")
+print("Interface criada com sucesso!")
